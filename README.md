@@ -60,11 +60,36 @@ das Gegnertempo steigt mit jedem Level.
 
 Am Levelstart blinken alle Gegner kurz und stehen still — Zeit, den Weg zu planen.
 
+## Grafik
+
+Alles wird zur Laufzeit auf Canvas gezeichnet, keine Bilddateien:
+
+* **Beleuchtung** — Gänge liegen im Licht, die Wandmasse bleibt schwarz; an jeder
+  Wandkante sitzt ein Lichtsaum, davor eine weiche Verschattung, die den Gang
+  vertieft. Chips, Boosts, Lava, Portale und der Spieler sind eigene Lichtquellen.
+* **Leuchtschleier** — ein zweiter Durchgang zeichnet nur die leuchtenden Objekte
+  in einen Viertelpuffer, weichgezeichnet und additiv darübergelegt. Wände bleiben
+  dadurch scharf, während Neon wirklich strahlt.
+* **Eigener Look pro Welt** — blinkende Rack-LEDs, Rohre, Eisrisse, glühende
+  Magmaspalten, Sternenstaub, Terminalplatten; dazu passende Boden- und Wandfarben.
+* **Figuren** — der Läufer mit Schubdüse, Blickrichtung und einem Leuchtring je
+  eingesammeltem +1; Jäger als Drohne mit rotierenden Segmenten und einem Auge,
+  das dir folgt; Wächter als Sägeblatt.
+* **Partikel und Wucht** — Funken beim Einsammeln, Explosion beim Tod, Glutflocken
+  über Lava, Bildschirmruckeln und kurze Farbblitze.
+* **Menü** — im Titelbildschirm läuft eine echte Verfolgungsjagd im Hintergrund,
+  jede Weltkarte zeigt eine gerenderte Vorschau ihrer eigenen Optik.
+
+Läuft in reiner Software-Rasterung (ohne GPU) in allen Welten mit rund 60 Bildern
+pro Sekunde.
+
 ## Technik
 
 Eine einzige Datei, kein Build, keine Abhängigkeiten: HTML + Canvas + Vanilla JS.
 Die 48 Level werden deterministisch aus einem Seed erzeugt (Recursive-Backtracker-
 Labyrinth mit aufgebrochenen Schleifen), Erreichbarkeit ist per BFS geprüft.
+Der Hintergrund jedes Levels wird einmal in einen Offscreen-Canvas gebacken; pro
+Bild kommen nur noch Animation, Figuren, Licht und Leuchtschleier dazu.
 
 Fortschritt löschen: Hauptmenü → „FORTSCHRITT LÖSCHEN".
 
