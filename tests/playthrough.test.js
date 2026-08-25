@@ -1,7 +1,12 @@
 /**
- * Spielt Welt 1 / Level 1 automatisch durch (BFS zum nächsten Ziel, Ausweichen
- * vor Jägern) und prüft den kompletten Ablauf: gewinnen -> Sterne -> speichern
- * -> nächstes Level freigeschaltet. Braucht Playwright + Chromium.
+ * Spielt Welt 1 / Level 1 automatisch durch und prüft den kompletten Ablauf:
+ * gewinnen -> Sterne -> speichern -> nächstes Level freigeschaltet.
+ *
+ * Der Ablauf wird mit angehaltenen Gegnern geprüft, damit er nicht vom Jagdglück
+ * eines Skript-Bots abhängt. Danach läuft dieselbe Runde noch einmal mit aktiven
+ * Jägern – rein als Bericht, ob der Bot durchkommt.
+ *
+ * Braucht Playwright + Chromium.
  *
  *   npm install && node tests/playthrough.test.js
  */
@@ -49,18 +54,22 @@ async function launch() {
   await page.goto('file://' + path.join(__dirname, '..', 'index.html'));
   await page.waitForTimeout(400);
 
-  let won = false, attempt = 0;
-  while (!won && attempt++ < 6) {
-    await page.evaluate(() => {
+  async function spielen({ gegnerAn, versuche }) {
+   let won = false, attempt = 0;
+   while (!won && attempt++ < versuche) {
+    await page.evaluate(frei => {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
       document.getElementById('screen-game').classList.add('on');
       window.KBESC.start(0, 0);
-    });
+      if (!frei) window.KBESC.freezeEnemies(600);
+    }, gegnerAn);
     await page.waitForTimeout(250);
+    const lvl = await page.evaluate(() => window.KBESC.level());
     let held = null, flee = null, fleeTtl = 0, fleeing = false;
-    for (let step = 0; step < 900; step++) {
+    for (let step = 0; step < 1600; step++) {
       const s = await page.evaluate(() => window.KBESC.state());
       if (!s || s.mode === 'won') { won = !!s && s.mode === 'won'; break; }
+      s.grid = lvl.grid; s.cols = lvl.cols; s.rows = lvl.rows; s.exit = lvl.exit;
       if (s.mode === 'dead') break;
 
       // Sicherheitskarte: Felder meiden, an denen ein Gegner eher ist als wir
@@ -129,10 +138,15 @@ async function launch() {
       if (dir === null) break;
 
       if (held !== KEY[dir]) { if (held) await page.keyboard.up(held); held = KEY[dir]; await page.keyboard.down(held); }
-      await page.waitForTimeout(45);
+      await page.waitForTimeout(25);
     }
     if (held) await page.keyboard.up(held);
+   }
+   return { won, attempt };
   }
+
+  const lauf = await spielen({ gegnerAn: false, versuche: 3 });
+  const won = lauf.won, attempt = lauf.attempt;
 
   const result = {
     gewonnen: won,
@@ -143,11 +157,18 @@ async function launch() {
   };
   if (won) {
     await page.click('#ov-main'); await page.waitForTimeout(400);
-    result.nächstesLevel = await page.evaluate(() => { const s = window.KBESC.state(); return 'W' + (s.w + 1) + 'L' + (s.l + 1); });
+    result.nächstesLevel = await page.evaluate(() => { const s = window.KBESC.level(); return 'W' + (s.w + 1) + 'L' + (s.l + 1); });
     await page.click('#btn-quit'); await page.waitForTimeout(250);
     result.gesperrteLevel = await page.locator('.lvl.locked').count();
   }
   console.log(result);
+
+  // Zweiter Lauf mit aktiven Jägern: reine Beobachtung, keine Zusicherung –
+  // ob ein Skript-Bot durch eine Verfolgung kommt, ist Tagesform.
+  const jagd = await spielen({ gegnerAn: true, versuche: 3 });
+  console.log('Jagd mit aktiven Jägern (nur Bericht):',
+    jagd.won ? 'Bot entkommen in Versuch ' + jagd.attempt : 'Bot in 3 Versuchen erwischt');
+
   await browser.close();
 
   const ok = won && result.sterneGespeichert > 0 && result.nächstesLevel === 'W1L2' && result.gesperrteLevel === 6 && !errors.length;

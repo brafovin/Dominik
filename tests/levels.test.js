@@ -45,6 +45,36 @@ for (let w = 0; w < WORLDS.length; w++) {
     const naive = steps / BASE_SPEED;
     if (naive > L.timeLimit * 0.92) problems.push('Zeitlimit zu knapp (' + naive.toFixed(1) + 's von ' + L.timeLimit + 's)');
 
+    // Mechaniken der Welt müssen tatsächlich vorkommen und dürfen nichts blockieren
+    const W2 = WORLDS[w];
+    const beltCount = L.belt.reduce((a,b) => a + (b ? 1 : 0), 0);
+    const doorCount = L.door.reduce((a,b) => a + (b ? 1 : 0), 0);
+    if(W2.belt && beltCount < 6) problems.push('kaum Laufbänder: ' + beltCount);
+    if(W2.door && doorCount < 2) problems.push('kaum Schleusen: ' + doorCount);
+    if(!W2.belt && beltCount) problems.push('Laufbänder in einer Welt ohne Bänder');
+    if(!W2.door && doorCount) problems.push('Schleusen in einer Welt ohne Schleusen');
+
+    const heilig = [L.start, L.exit, ...L.chips, ...L.boosts];
+    for(const p of heilig){
+      const c = p.y*L.cols + p.x;
+      if(L.belt[c]) problems.push('Laufband auf einem festen Punkt');
+      if(L.door[c]) problems.push('Schleuse auf einem festen Punkt');
+      if(L.lava[c]) problems.push('Lava auf einem festen Punkt');
+      if(L.ice[c])  problems.push('Eis auf einem festen Punkt');
+    }
+    // Schleusen sitzen nur in Gängen und nie direkt nebeneinander
+    for(let c=0;c<L.door.length;c++){
+      if(!L.door[c]) continue;
+      const x = c % L.cols, y = (c / L.cols) | 0;
+      const h = L.grid[c-1] === 0 && L.grid[c+1] === 0 && L.grid[c-L.cols] !== 0 && L.grid[c+L.cols] !== 0;
+      const v = L.grid[c-L.cols] === 0 && L.grid[c+L.cols] === 0 && L.grid[c-1] !== 0 && L.grid[c+1] !== 0;
+      if(!h && !v) problems.push('Schleuse steht nicht in einem Gang');
+      for(const [dx,dy] of [[1,0],[0,1],[-1,0],[0,-1]]){
+        const n = (y+dy)*L.cols + (x+dx);
+        if(n >= 0 && n < L.door.length && L.door[n]) problems.push('zwei Schleusen nebeneinander');
+      }
+    }
+
     checked++;
     if (problems.length) { failed++; console.log('FEHLER W' + (w + 1) + 'L' + (l + 1) + ': ' + problems.join(' | ')); }
   }
