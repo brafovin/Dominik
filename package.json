@@ -1,0 +1,13 @@
+{
+  "name": "keyboard-escape-plus1",
+  "version": "1.0.0",
+  "description": "Keyboard Escape +1 — Tastatur-Fluchtspiel mit 6 Welten und 48 Leveln (eine einzige HTML-Datei)",
+  "private": true,
+  "scripts": {
+    "test": "node tests/levels.test.js",
+    "test:play": "node tests/playthrough.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}
